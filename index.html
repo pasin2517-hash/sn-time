@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SN - ระบบลงเวลาทำงาน (Cloud)</title>
+<style>
+:root{
+  --brand:#1f6feb; --brand-dark:#1550b3; --bg:#f4f6fb; --card:#fff;
+  --ink:#1a2233; --muted:#6b7688; --line:#e3e8f0; --ok:#1a9d54; --ok-bg:#e5f6ec;
+  --warn:#c8811a; --danger:#d23b3b; --danger-bg:#fdeaea; --shadow:0 2px 10px rgba(20,40,80,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:"Segoe UI",Tahoma,-apple-system,"Sarabun",sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.45}
+button{font-family:inherit;cursor:pointer}
+input,select{font-family:inherit;font-size:15px}
+.hidden{display:none!important}
+#app{max-width:1100px;margin:0 auto;min-height:100%;display:flex;flex-direction:column}
+.topbar{background:var(--brand);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:20}
+.topbar .logo{font-weight:800;font-size:20px;letter-spacing:.5px;background:#fff;color:var(--brand);width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center}
+.topbar .title{font-weight:700;font-size:17px}
+.topbar .sub{font-size:12px;opacity:.85}
+.topbar .spacer{flex:1}
+.topbar .who{font-size:13px;text-align:right;line-height:1.2}
+.topbar .btn-out{background:rgba(255,255,255,.18);color:#fff;border:0;padding:7px 12px;border-radius:8px;font-size:13px}
+.synced{font-size:11px;opacity:.85;display:flex;align-items:center;gap:5px}
+.synced .d{width:7px;height:7px;border-radius:50%;background:#7be0a3}
+.tabs{display:flex;gap:2px;background:#fff;border-bottom:1px solid var(--line);overflow-x:auto;position:sticky;top:62px;z-index:15}
+.tabs button{background:none;border:0;padding:13px 16px;font-size:14px;color:var(--muted);border-bottom:3px solid transparent;white-space:nowrap;font-weight:600}
+.tabs button.active{color:var(--brand);border-bottom-color:var(--brand)}
+.content{flex:1;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
+.card h2{font-size:16px;margin-bottom:4px}
+.card .hint{color:var(--muted);font-size:13px;margin-bottom:14px}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.field{flex:1;min-width:150px;margin-bottom:12px}
+.field label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:5px;font-weight:600}
+.field input,.field select{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;background:#fbfcfe}
+.field input:focus,.field select:focus{outline:none;border-color:var(--brand)}
+.btn{background:var(--brand);color:#fff;border:0;padding:11px 18px;border-radius:10px;font-weight:700;font-size:15px}
+.btn:hover{background:var(--brand-dark)}
+.btn.sm{padding:7px 12px;font-size:13px;border-radius:8px}
+.btn.gray{background:#eef1f6;color:var(--ink)}
+.btn.gray:hover{background:#e2e7ef}
+.btn.ok{background:var(--ok)}
+.btn.danger{background:var(--danger)}
+.btn.ghost{background:none;color:var(--brand);border:1px solid var(--brand)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.chip{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700}
+.chip.in{background:var(--ok-bg);color:var(--ok)}
+.chip.out{background:#eef1f6;color:var(--muted)}
+.chip.leave{background:#fff2df;color:var(--warn)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:9px 8px;text-align:left;border-bottom:1px solid var(--line)}
+th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;font-weight:700}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.table-wrap{overflow-x:auto}
+.grid-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.emp-card{border:1px solid var(--line);border-radius:12px;padding:14px;background:#fff;cursor:pointer;transition:.15s}
+.emp-card:hover{border-color:var(--brand);box-shadow:var(--shadow)}
+.emp-card .avatar{width:44px;height:44px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;margin-bottom:8px}
+.emp-card .nm{font-weight:700}
+.emp-card .meta{font-size:12.5px;color:var(--muted);margin-top:2px}
+.stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:16px}
+.stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px}
+.stat .v{font-size:24px;font-weight:800;color:var(--brand)}
+.stat .l{font-size:12.5px;color:var(--muted);margin-top:2px}
+.clock-hero{text-align:center;padding:8px 0 4px}
+.clock-hero .time{font-size:46px;font-weight:800;letter-spacing:1px;font-variant-numeric:tabular-nums}
+.clock-hero .date{color:var(--muted);margin-bottom:4px}
+.big-btn{width:190px;height:190px;border-radius:50%;border:0;color:#fff;font-size:22px;font-weight:800;box-shadow:0 8px 24px rgba(31,111,235,.35);margin:14px auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.big-btn.in{background:linear-gradient(160deg,#22b364,#178a4b)}
+.big-btn.out{background:linear-gradient(160deg,#f0674f,#d23b3b);box-shadow:0 8px 24px rgba(210,59,59,.35)}
+.big-btn small{font-size:13px;font-weight:500;opacity:.9}
+.gps-line{font-size:12.5px;color:var(--muted);display:flex;gap:6px;align-items:center;justify-content:center;margin-top:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.dot.live{background:var(--ok)}
+.modal-bg{position:fixed;inset:0;background:rgba(20,30,50,.45);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px}
+.modal{background:#fff;border-radius:16px;max-width:520px;width:100%;max-height:90vh;overflow:auto;padding:20px}
+.modal h3{margin-bottom:14px}
+.modal .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:8px}
+.link-box{display:flex;gap:8px;background:#f4f6fb;border:1px dashed var(--brand);border-radius:10px;padding:10px}
+.link-box input{flex:1;border:0;background:none}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:8px}
+.notice{background:#eef4ff;border:1px solid #cfe0ff;color:#2f5bb7;padding:10px 12px;border-radius:10px;font-size:13px;margin-bottom:14px}
+.notice.warn{background:#fff6e5;border-color:#ffe0a6;color:#8a5a12}
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#1f6feb,#123b8a);padding:20px}
+.login-card{background:#fff;border-radius:18px;padding:28px;max-width:420px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.login-card .logo-lg{width:64px;height:64px;border-radius:16px;background:var(--brand);color:#fff;font-weight:800;font-size:30px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px}
+.login-card h1{text-align:center;font-size:22px}
+.login-card p.s{text-align:center;color:var(--muted);margin-bottom:20px;font-size:13.5px}
+.role-pick{display:flex;gap:10px;margin-bottom:16px}
+.role-pick button{flex:1;padding:12px;border:2px solid var(--line);border-radius:12px;background:#fff;font-weight:700;color:var(--muted)}
+.role-pick button.on{border-color:var(--brand);color:var(--brand);background:#f0f6ff}
+#printArea{display:none}
+@media print{body{background:#fff}#app,.no-print{display:none!important}#printArea{display:block!important}@page{size:A4;margin:14mm}}
+.sheet{color:#000;font-size:12.5px}
+.sheet h1{font-size:19px;text-align:center}
+.sheet .subh{text-align:center;color:#444;margin-bottom:14px;font-size:12px}
+.sheet table{font-size:11.5px}
+.sheet th,.sheet td{border:1px solid #999;padding:5px 6px}
+.sheet th{background:#eee!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.sheet .foot{margin-top:24px;display:flex;justify-content:space-between;font-size:12px}
+.sheet .sign{width:44%;text-align:center;border-top:1px solid #000;padding-top:6px}
+.center-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(160deg,#1f6feb,#123b8a)}
+.spin{width:40px;height:40px;border:4px solid #cfe0ff;border-top-color:var(--brand);border-radius:50%;animation:sp 1s linear infinite;margin:0 auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media(max-width:600px){.content{padding:12px}.topbar .sub{display:none}.clock-hero .time{font-size:38px}}
+</style>
+</head>
+<body>
+
+<!-- ===== Loading / Config gate ===== -->
+<div id="bootView" class="center-wrap">
+  <div class="login-card">
+    <div class="logo-lg">SN</div>
+    <div id="bootBody">
+      <div class="spin"></div>
+      <p class="s" style="margin-top:14px">กำลังเชื่อมต่อฐานข้อมูล…</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Self-register (via invite link) ===== -->
+<div id="joinView" class="login-wrap hidden">
+  <div class="login-card">
+    <div class="logo-lg">SN</div>
+    <h1>ลงทะเบียนพนักงาน</h1>
+    <p class="s" id="joinSub">กรอกข้อมูลเพื่อเข้าใช้ระบบลงเวลา บริษัท SN</p>
+    <div class="field"><label>ชื่อ-สกุล</label><input id="jName" placeholder="ชื่อจริง นามสกุล"></div>
+    <div class="row">
+      <div class="field"><label>ตำแหน่ง</label><select id="jRole"><option>คนขับรถ</option><option>พนักงานทั่วไป</option></select></div>
+      <div class="field"><label>เบอร์รถ (ถ้ามี)</label><input id="jDriver" placeholder="SN-01"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>เบอร์โทร</label><input id="jPhone"></div>
+      <div class="field"><label>ตั้ง PIN 4 หลัก</label><input id="jPin" inputmode="numeric" maxlength="4" placeholder="เช่น 2580"></div>
+    </div>
+    <button class="btn" style="width:100%" onclick="doJoin()">ลงทะเบียนเข้าใช้งาน</button>
+    <p id="joinMsg" style="text-align:center;font-size:13px;color:var(--danger);margin-top:12px"></p>
+  </div>
+</div>
+
+<!-- ===== LOGIN ===== -->
+<div id="loginView" class="login-wrap hidden">
+  <div class="login-card">
+    <div class="logo-lg">SN</div>
+    <h1>ระบบลงเวลาทำงาน</h1>
+    <p class="s">บริษัท SN · ใช้ได้ทั้งมือถือ คอม และไอแพด</p>
+    <div class="role-pick">
+      <button id="roleEmp" class="on" onclick="pickRole('emp')">พนักงาน</button>
+      <button id="roleAdmin" onclick="pickRole('admin')">ผู้ดูแล / HR</button>
+    </div>
+    <div id="empLoginFields">
+      <div class="field"><label>เลือกชื่อพนักงาน</label><select id="loginEmpSelect"></select></div>
+      <div class="field"><label>รหัส PIN</label><input id="loginPin" type="password" inputmode="numeric" placeholder="••••"></div>
+    </div>
+    <div id="adminLoginFields" class="hidden">
+      <div class="field"><label>ชื่อผู้ใช้</label><input id="adminUser" value="admin"></div>
+      <div class="field"><label>รหัสผ่าน</label><input id="adminPass" type="password" placeholder="รหัสผู้ดูแล"></div>
+    </div>
+    <button class="btn" style="width:100%" onclick="doLogin()">เข้าสู่ระบบ</button>
+    <p style="text-align:center;font-size:12px;color:var(--muted);margin-top:14px">ข้อมูลซิงค์เรียลไทม์ทุกเครื่อง</p>
+  </div>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div id="app" class="hidden">
+  <div class="topbar">
+    <div class="logo">SN</div>
+    <div><div class="title">ระบบลงเวลาทำงาน</div><div class="synced"><span class="d"></span> ซิงค์เรียลไทม์</div></div>
+    <div class="spacer"></div>
+    <div class="who" id="whoBox"></div>
+    <button class="btn-out" onclick="logout()">ออก</button>
+  </div>
+  <div class="tabs" id="tabs"></div>
+  <div class="content" id="content"></div>
+</div>
+
+<div id="printArea"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* =========================================================
+   SN Time Tracker — Cloud (Supabase + Realtime)
+   *** ก่อน DEPLOY: ใส่ค่า 3 บรรทัดนี้ ***
+   ========================================================= */
+const SUPABASE_URL   = "https://mkavdrmglxnvuvzdikdg.supabase.co";
+const SUPABASE_ANON  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1rYXZkcm1nbHhudnV2emRpa2RnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4NTA4NzksImV4cCI6MjEwMTQyNjg3OX0.uPL7to_6jULqhOXHXGzfbcb60Ss6v8qhR5WvWY7WRfg";
+const ADMIN_PASSWORD = "SNadmin2026";  // <-- รหัสผู้ดูแล/HR (แนะนำให้เปลี่ยนเป็นของคุณเอง)
+
+const TABLES=['employees','records','leaves','holidays','invites'];
+const LEAVE_TYPES={annual:'ลาพักร้อน',sick:'ลาป่วย',personal:'ลากิจ',unpaid:'ลาไม่รับเงิน'};
+let sb=null, DB={employees:[],records:[],leaves:[],holidays:[],invites:[]};
+let session=null, curTab='', curEmpDetailId=null;
+
+/* ---------- helpers ---------- */
+function pad(n){return String(n).padStart(2,'0')}
+function todayISO(offset=0){const d=new Date();d.setDate(d.getDate()+offset);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function nowHM(){const d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes());}
+function thDate(iso){const [y,m,dd]=iso.split('-');const mon=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];return parseInt(dd)+' '+mon[parseInt(m)-1]+' '+(parseInt(y)+543);}
+function thDayName(iso){const d=new Date(iso+'T00:00');return['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'][d.getDay()];}
+function diffHours(inT,outT){if(!inT||!outT)return 0;const [ih,im]=inT.split(':').map(Number);const [oh,om]=outT.split(':').map(Number);let m=(oh*60+om)-(ih*60+im);if(m<0)m+=1440;return m/60;}
+function fmtH(h){if(!h)return '-';const hh=Math.floor(h);const mm=Math.round((h-hh)*60);return hh+' ชม. '+pad(mm)+' น.';}
+function uid(p){return p+Date.now().toString(36)+Math.random().toString(36).slice(2,5)}
+
+/* ---------- data layer (Supabase) ---------- */
+async function pull(t){const {data,error}=await sb.from(t).select('id,data');if(error){console.error(t,error);return;}DB[t]=(data||[]).map(r=>({id:r.id,...(r.data||{})}));}
+async function pullAll(){for(const t of TABLES)await pull(t);}
+async function put(t,obj){const {id,...rest}=obj;const {error}=await sb.from(t).upsert({id,data:rest});if(error){alert('บันทึกไม่สำเร็จ: '+error.message);return;}const i=DB[t].findIndex(x=>x.id===id);if(i>=0)DB[t][i]=obj;else DB[t].push(obj);}
+async function del(t,id){const {error}=await sb.from(t).delete().eq('id',id);if(error){alert('ลบไม่สำเร็จ: '+error.message);return;}DB[t]=DB[t].filter(x=>x.id!==id);}
+function subscribeRealtime(){TABLES.forEach(t=>{sb.channel('rt_'+t).on('postgres_changes',{event:'*',schema:'public',table:t},async()=>{await pull(t);if(!document.getElementById('modalBg') && document.getElementById('app') && !document.getElementById('app').classList.contains('hidden'))render();}).subscribe();});}
+
+/* ---------- boot ---------- */
+async function boot(){
+  const url=SUPABASE_URL||localStorage.getItem('sn_url')||'';
+  const key=SUPABASE_ANON||localStorage.getItem('sn_key')||'';
+  if(!url||!key){showConfigGate();return;}
+  try{
+    sb=supabase.createClient(url,key);
+    await pullAll();
+    subscribeRealtime();
+    routeStart();
+  }catch(e){showConfigGate('เชื่อมต่อไม่สำเร็จ: '+e.message);}
+}
+function showConfigGate(err){
+  document.getElementById('bootBody').innerHTML=`
+    <h1 style="font-size:19px;text-align:center">ตั้งค่าการเชื่อมต่อ</h1>
+    <p class="s">ใส่ค่าจากโปรเจกต์ Supabase ของคุณ (ครั้งเดียวต่อเครื่อง)<br>หรือฝังค่าไว้ในไฟล์ก่อน deploy ก็ได้</p>
+    ${err?`<div class="notice warn">${err}</div>`:''}
+    <div class="field"><label>Project URL</label><input id="cfgUrl" placeholder="https://xxxx.supabase.co"></div>
+    <div class="field"><label>anon public key</label><input id="cfgKey" placeholder="eyJhbGc..."></div>
+    <button class="btn" style="width:100%" onclick="saveConfig()">เชื่อมต่อ</button>`;
+}
+function saveConfig(){const u=document.getElementById('cfgUrl').value.trim(),k=document.getElementById('cfgKey').value.trim();if(!u||!k)return alert('กรอกให้ครบ');localStorage.setItem('sn_url',u);localStorage.setItem('sn_key',k);location.reload();}
+
+/* ---------- routing: invite link vs login ---------- */
+function getInviteCode(){const h=location.hash.match(/join\/([A-Za-z0-9]+)/);if(h)return h[1];const q=new URLSearchParams(location.search).get('join');return q||null;}
+function routeStart(){
+  document.getElementById('bootView').classList.add('hidden');
+  const code=getInviteCode();
+  if(code){openJoin(code);}
+  else{fillLoginSelect();document.getElementById('loginView').classList.remove('hidden');}
+}
+
+/* ---------- self register ---------- */
+let joinCode=null;
+function openJoin(code){
+  joinCode=code;
+  const iv=DB.invites.find(i=>i.id===code);
+  if(!iv||iv.active===false||(iv.maxUses&&iv.usedCount>=iv.maxUses)){
+    document.getElementById('joinSub').textContent='ลิงก์นี้ใช้ไม่ได้หรือหมดอายุแล้ว ติดต่อผู้ดูแล';
+  }
+  document.getElementById('joinView').classList.remove('hidden');
+}
+async function doJoin(){
+  const name=document.getElementById('jName').value.trim();
+  const pin=document.getElementById('jPin').value.trim();
+  const msg=document.getElementById('joinMsg');
+  if(!name)return msg.textContent='กรุณากรอกชื่อ';
+  if(!/^\d{4}$/.test(pin))return msg.textContent='PIN ต้องเป็นตัวเลข 4 หลัก';
+  const iv=DB.invites.find(i=>i.id===joinCode);
+  if(!iv||iv.active===false)return msg.textContent='ลิงก์นี้ใช้ไม่ได้';
+  const emp={id:uid('e'),name,role:document.getElementById('jRole').value,
+    driverNo:document.getElementById('jDriver').value.trim(),phone:document.getElementById('jPhone').value.trim(),
+    pin,active:true,shift:{start:'08:00',end:'17:00',workDays:[1,2,3,4,5,6]}};
+  await put('employees',emp);
+  iv.usedCount=(iv.usedCount||0)+1;await put('invites',iv);
+  session={role:'emp',empId:emp.id};
+  document.getElementById('joinView').classList.add('hidden');
+  history.replaceState(null,'',location.pathname);
+  startApp();
+}
+
+/* ---------- login ---------- */
+let pickedRole='emp';
+function pickRole(r){pickedRole=r;
+  document.getElementById('roleEmp').classList.toggle('on',r==='emp');
+  document.getElementById('roleAdmin').classList.toggle('on',r==='admin');
+  document.getElementById('empLoginFields').classList.toggle('hidden',r!=='emp');
+  document.getElementById('adminLoginFields').classList.toggle('hidden',r!=='admin');
+}
+function fillLoginSelect(){const s=document.getElementById('loginEmpSelect');const list=DB.employees.filter(e=>e.active);
+  s.innerHTML=list.length?list.map(e=>`<option value="${e.id}">${e.name} · ${e.role}</option>`).join(''):'<option value="">— ยังไม่มีพนักงาน —</option>';}
+function doLogin(){
+  if(pickedRole==='admin'){
+    if(document.getElementById('adminPass').value===ADMIN_PASSWORD){session={role:'admin'};startApp();}
+    else alert('รหัสผ่านผู้ดูแลไม่ถูกต้อง');
+  }else{
+    const id=document.getElementById('loginEmpSelect').value;
+    const emp=DB.employees.find(e=>e.id===id);
+    if(emp && emp.pin===document.getElementById('loginPin').value){session={role:'emp',empId:id};startApp();}
+    else alert('PIN ไม่ถูกต้อง');
+  }
+}
+function logout(){session=null;document.getElementById('app').classList.add('hidden');fillLoginSelect();document.getElementById('loginView').classList.remove('hidden');}
+
+/* ---------- app shell ---------- */
+const TABS_ADMIN=[['dash','แดชบอร์ด'],['employees','พนักงาน'],['daily','สรุปรายวัน'],['monthly','สรุปรายเดือน'],['leaves','ลา / วันหยุด'],['invite','ลิงก์รับพนักงาน']];
+const TABS_EMP=[['clock','ลงเวลา'],['myhistory','ประวัติของฉัน'],['myleave','แจ้งลา']];
+function startApp(){
+  document.getElementById('loginView').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  const tabsDef=session.role==='admin'?TABS_ADMIN:TABS_EMP;
+  document.getElementById('tabs').innerHTML=tabsDef.map(([k,l])=>`<button data-tab="${k}" onclick="go('${k}')">${l}</button>`).join('');
+  if(session.role==='admin')document.getElementById('whoBox').innerHTML='ผู้ดูแลระบบ<br><b>Admin</b>';
+  else{const e=DB.employees.find(x=>x.id===session.empId);document.getElementById('whoBox').innerHTML=e.role+'<br><b>'+e.name+'</b>';}
+  go(tabsDef[0][0]);
+}
+function go(tab){curTab=tab;document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));render();}
+function render(){
+  const c=document.getElementById('content');
+  const map={dash:renderDash,employees:renderEmployees,daily:renderDaily,monthly:renderMonthly,leaves:renderLeaves,invite:renderInvite,clock:renderClock,myhistory:renderMyHistory,myleave:renderMyLeave};
+  c.innerHTML=(map[curTab]||(()=>''))();
+  if(curTab==='clock')startClock();
+}
+
+/* ===== EMPLOYEE ===== */
+let liveLoc=null,clockTimer=null;
+function renderClock(){
+  const e=DB.employees.find(x=>x.id===session.empId);
+  const rec=DB.records.find(r=>r.empId===e.id && r.date===todayISO());
+  const clockedIn=rec&&rec.inTime&&!rec.outTime, done=rec&&rec.inTime&&rec.outTime;
+  return `<div class="card"><div class="clock-hero"><div class="time" id="liveClock">--:--</div>
+    <div class="date">${thDayName(todayISO())} ${thDate(todayISO())}</div></div>
+    ${done?`<div class="notice" style="text-align:center">วันนี้ลงเวลาครบแล้ว ✓ เข้า ${rec.inTime} · ออก ${rec.outTime} · รวม ${fmtH(diffHours(rec.inTime,rec.outTime))}</div>`
+    :`<button class="big-btn ${clockedIn?'out':'in'}" onclick="${clockedIn?'openClockOut()':'openClockIn()'}">${clockedIn?'ออกงาน':'เข้างาน'}<small>${clockedIn?'แตะเพื่อบันทึกออกงาน':'แตะเพื่อบันทึกเข้างาน'}</small></button>
+    <div class="gps-line"><span class="dot" id="gpsDot"></span><span id="gpsText">กำลังอ่านตำแหน่ง GPS…</span></div>`}
+    ${clockedIn?`<div class="notice" style="text-align:center">เข้างานเมื่อ ${rec.inTime}</div>`:''}</div>
+    ${fuelCard(e.id)}
+    <div class="card"><h2>สรุปของฉันเดือนนี้</h2><div class="hint">${thDate(todayISO()).split(' ').slice(1).join(' ')}</div>${myMonthStats(e.id)}</div>`;
+}
+/* ---- fuel entries (ลิตร + เวลาที่เติม) ---- */
+function getFuelEntries(rec){if(!rec)return [];if(Array.isArray(rec.fuelEntries))return rec.fuelEntries;if(+rec.fuelLiters>0)return [{liters:+rec.fuelLiters,time:rec.outTime||''}];return [];}
+function ensureFuelArr(rec){if(!Array.isArray(rec.fuelEntries))rec.fuelEntries=getFuelEntries(rec).slice();return rec.fuelEntries;}
+function recalcFuel(rec){rec.fuelLiters=ensureFuelArr(rec).reduce((s,e)=>s+(+e.liters||0),0);}
+function fuelCard(empId){
+  const rec=DB.records.find(r=>r.empId===empId&&r.date===todayISO());
+  const entries=getFuelEntries(rec);
+  const total=entries.reduce((s,e)=>s+(+e.liters||0),0);
+  const rows=entries.map((e,i)=>`<tr><td>${e.time||'-'} น.</td><td class="num">${(+e.liters||0).toFixed(1)} ล.</td><td><button class="btn danger sm" onclick="delFuelEntry('${rec.id}',${i})">ลบ</button></td></tr>`).join('');
+  return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <h2>⛽ เติมน้ำมันวันนี้</h2><button class="btn ok sm" onclick="openAddFuel()">+ บันทึกเติมน้ำมัน</button></div>
+    <div class="hint" style="margin:0 0 10px">รวมวันนี้ <b>${total.toFixed(1)}</b> ลิตร · ใส่จำนวนลิตรและเวลาที่เติมได้เอง (เติมหลายครั้งได้)</div>
+    ${entries.length?`<div class="table-wrap"><table><thead><tr><th>เวลาที่เติม</th><th class="num">จำนวน</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="hint" style="margin:0">ยังไม่มีการเติมน้ำมันวันนี้</div>'}
+  </div>`;
+}
+function openAddFuel(){
+  modal(`<h3>⛽ บันทึกเติมน้ำมัน</h3>
+    <div class="row"><div class="field"><label>จำนวนลิตรที่เติม</label><input id="fLit" type="number" step="0.1" min="0" inputmode="decimal" placeholder="เช่น 30.5"></div>
+    <div class="field"><label>เวลาที่เติม</label><input id="fTime" type="time" value="${nowHM()}"></div></div>
+    <div class="actions"><button class="btn gray" onclick="closeModal()">ยกเลิก</button><button class="btn ok" onclick="saveFuelEntry()">บันทึก</button></div>`);
+}
+async function saveFuelEntry(){
+  const lit=+document.getElementById('fLit').value, time=document.getElementById('fTime').value||nowHM();
+  if(!(lit>0))return alert('กรอกจำนวนลิตรให้ถูกต้อง');
+  const empId=session.empId, date=todayISO();
+  let rec=DB.records.find(r=>r.empId===empId&&r.date===date);
+  if(!rec)rec={id:uid('r'),empId,date,inTime:'',outTime:'',inLoc:null,outLoc:null,vehicleNo:(DB.employees.find(e=>e.id===empId)||{}).driverNo||'',note:'',status:'work',fuelEntries:[]};
+  ensureFuelArr(rec).push({liters:lit,time});recalcFuel(rec);
+  await put('records',rec);closeModal();render();
+}
+function openFuelManage(recId){
+  const rec=DB.records.find(r=>r.id===recId);const arr=ensureFuelArr(rec);
+  const rows=arr.map((e,i)=>`<tr><td><input type="time" value="${e.time||''}" onchange="editFuel('${recId}',${i},'time',this.value)"></td><td><input type="number" step="0.1" min="0" value="${e.liters||0}" style="width:90px" onchange="editFuel('${recId}',${i},'liters',this.value)"></td><td><button class="btn danger sm" onclick="delFuelEntry('${recId}',${i})">ลบ</button></td></tr>`).join('');
+  modal(`<h3>⛽ จัดการน้ำมัน — ${thDate(rec.date)}</h3>
+    <div class="table-wrap"><table><thead><tr><th>เวลาที่เติม</th><th>ลิตร</th><th></th></tr></thead><tbody id="fmRows">${rows||'<tr><td colspan="3" style="color:#888">ยังไม่มีรายการ</td></tr>'}</tbody></table></div>
+    <div style="margin-top:10px"><b>รวม ${(+rec.fuelLiters||0).toFixed(1)} ลิตร</b></div>
+    <div class="actions"><button class="btn gray" onclick="adminAddFuel('${recId}')">+ เพิ่มการเติม</button><button class="btn" onclick="closeModal();if(curEmpDetailId)openEmpDetail(curEmpDetailId)">เสร็จสิ้น</button></div>`);
+}
+async function adminAddFuel(recId){const rec=DB.records.find(r=>r.id===recId);ensureFuelArr(rec).push({liters:0,time:nowHM()});recalcFuel(rec);await put('records',rec);openFuelManage(recId);}
+async function editFuel(recId,idx,field,val){const rec=DB.records.find(r=>r.id===recId);const arr=ensureFuelArr(rec);arr[idx][field]=field==='liters'?(+val||0):val;recalcFuel(rec);await put('records',rec);}
+async function delFuelEntry(recId,idx){const rec=DB.records.find(r=>r.id===recId);if(!rec)return;const arr=ensureFuelArr(rec);arr.splice(idx,1);recalcFuel(rec);await put('records',rec);if(document.getElementById('fmRows'))openFuelManage(recId);else if(session.role==='admin'&&curEmpDetailId)openEmpDetail(curEmpDetailId);else render();}
+function startClock(){
+  const t=document.getElementById('liveClock');
+  const tick=()=>{if(!t)return;const d=new Date();t.textContent=pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());};
+  tick();clearInterval(clockTimer);clockTimer=setInterval(tick,1000);
+  if(navigator.geolocation){navigator.geolocation.getCurrentPosition(p=>{liveLoc={lat:p.coords.latitude,lng:p.coords.longitude,acc:Math.round(p.coords.accuracy)};const dot=document.getElementById('gpsDot'),tx=document.getElementById('gpsText');if(dot)dot.classList.add('live');if(tx)tx.textContent=`ตำแหน่งพร้อม · ${liveLoc.lat.toFixed(4)}, ${liveLoc.lng.toFixed(4)} (±${liveLoc.acc}ม.)`;},()=>{const tx=document.getElementById('gpsText');if(tx)tx.textContent='อ่านตำแหน่งไม่ได้ — ยังลงเวลาได้ แต่ไม่มีพิกัด';},{enableHighAccuracy:true,timeout:8000});}
+  else{const tx=document.getElementById('gpsText');if(tx)tx.textContent='อุปกรณ์นี้ไม่รองรับ GPS';}
+}
+function myMonthStats(empId){const mon=todayISO().slice(0,7);const recs=DB.records.filter(r=>r.empId===empId&&r.date.startsWith(mon)&&r.status==='work');
+  const days=recs.filter(r=>r.inTime).length,hrs=recs.reduce((s,r)=>s+diffHours(r.inTime,r.outTime),0),fuel=recs.reduce((s,r)=>s+(+r.fuelLiters||0),0),lv=DB.leaves.filter(l=>l.empId===empId&&l.date.startsWith(mon)).length;
+  return `<div class="stat-row"><div class="stat"><div class="v">${days}</div><div class="l">วันทำงาน</div></div><div class="stat"><div class="v">${fmtH(hrs)}</div><div class="l">ชั่วโมงรวม</div></div><div class="stat"><div class="v">${fuel.toFixed(1)}</div><div class="l">น้ำมัน (ลิตร)</div></div><div class="stat"><div class="v">${lv}</div><div class="l">วันลา</div></div></div>`;}
+function openClockIn(){const e=DB.employees.find(x=>x.id===session.empId);
+  modal(`<h3>บันทึกเข้างาน</h3><div class="notice">เวลา ${nowHM()} · ${locStr(liveLoc)}</div>
+    <div class="field"><label>เลขทะเบียน/เบอร์รถ</label><input id="mVeh" value="${e.driverNo||''}" placeholder="SN-01"></div>
+    <div class="field"><label>หมายเหตุ</label><input id="mNote" placeholder="เช่น เส้นทางที่วิ่ง"></div>
+    <div class="actions"><button class="btn gray" onclick="closeModal()">ยกเลิก</button><button class="btn ok" onclick="saveClockIn()">ยืนยันเข้างาน</button></div>`);}
+async function saveClockIn(){const e=DB.employees.find(x=>x.id===session.empId);const veh=document.getElementById('mVeh').value,note=document.getElementById('mNote').value;
+  let rec=DB.records.find(r=>r.empId===e.id&&r.date===todayISO());
+  if(rec){rec.inTime=nowHM();rec.inLoc=liveLoc;if(veh)rec.vehicleNo=veh;if(note)rec.note=(rec.note?rec.note+' | ':'')+note;}
+  else rec={id:uid('r'),empId:e.id,date:todayISO(),inTime:nowHM(),outTime:'',inLoc:liveLoc,outLoc:null,fuelLiters:0,fuelEntries:[],vehicleNo:veh,note,status:'work'};
+  await put('records',rec);closeModal();render();}
+function openClockOut(){modal(`<h3>บันทึกออกงาน</h3><div class="notice">เวลา ${nowHM()} · ${locStr(liveLoc)}</div>
+  <div class="notice warn">บันทึกน้ำมันได้ที่หน้า "ลงเวลา" → ปุ่ม ⛽ เติมน้ำมัน (ใส่ลิตร + เวลาที่เติม เติมได้หลายครั้ง)</div>
+  <div class="field"><label>หมายเหตุ</label><input id="mNote2"></div>
+  <div class="actions"><button class="btn gray" onclick="closeModal()">ยกเลิก</button><button class="btn danger" onclick="saveClockOut()">ยืนยันออกงาน</button></div>`);}
+async function saveClockOut(){const rec=DB.records.find(r=>r.empId===session.empId&&r.date===todayISO()&&!r.outTime);
+  rec.outTime=nowHM();rec.outLoc=liveLoc;const n=document.getElementById('mNote2').value;if(n)rec.note=(rec.note?rec.note+' | ':'')+n;
+  await put('records',rec);closeModal();render();}
+function locStr(l){return l?`พิกัด ${l.lat.toFixed(4)}, ${l.lng.toFixed(4)} (±${l.acc}ม.)`:'ไม่มีพิกัด GPS';}
+function renderMyHistory(){const e=DB.employees.find(x=>x.id===session.empId);
+  return `<div class="card"><h2>ประวัติการทำงาน — ${e.name}</h2><div class="hint">เดือน ${thDate(todayISO()).split(' ').slice(1).join(' ')}</div>${historyTable(e.id,todayISO().slice(0,7),false)}</div>`;}
+function renderMyLeave(){const e=DB.employees.find(x=>x.id===session.empId);const mine=DB.leaves.filter(l=>l.empId===e.id).sort((a,b)=>b.date.localeCompare(a.date));
+  return `<div class="card"><h2>แจ้งลา</h2><div class="hint">ผู้ดูแลจะเห็นในหน้า ลา/วันหยุด</div>
+    <div class="row"><div class="field"><label>วันที่ลา</label><input id="lvDate" type="date" value="${todayISO()}"></div>
+    <div class="field"><label>ประเภท</label><select id="lvType">${Object.entries(LEAVE_TYPES).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div></div>
+    <div class="field"><label>เหตุผล</label><input id="lvNote"></div><button class="btn" onclick="submitLeave('${e.id}')">ส่งคำขอลา</button></div>
+    <div class="card"><h2>ประวัติการลาของฉัน</h2><div class="table-wrap"><table><thead><tr><th>วันที่</th><th>ประเภท</th><th>เหตุผล</th><th>สถานะ</th></tr></thead><tbody>
+    ${mine.map(l=>`<tr><td>${thDate(l.date)}</td><td>${LEAVE_TYPES[l.type]}</td><td>${l.note||'-'}</td><td><span class="chip ${l.status==='approved'?'in':'leave'}">${l.status==='approved'?'อนุมัติ':'รออนุมัติ'}</span></td></tr>`).join('')||'<tr><td colspan="4" style="color:#888">ยังไม่มีรายการ</td></tr>'}</tbody></table></div></div>`;}
+async function submitLeave(empId){const d=document.getElementById('lvDate').value;if(!d)return alert('เลือกวันที่');
+  await put('leaves',{id:uid('l'),empId,date:d,type:document.getElementById('lvType').value,note:document.getElementById('lvNote').value,status:'pending'});
+  alert('ส่งคำขอลาแล้ว');render();}
+
+/* ===== ADMIN ===== */
+function renderDash(){
+  const t=todayISO();const todayRecs=DB.records.filter(r=>r.date===t);
+  const working=todayRecs.filter(r=>r.inTime&&!r.outTime).length,done=todayRecs.filter(r=>r.inTime&&r.outTime).length,onLeave=DB.leaves.filter(l=>l.date===t).length;
+  const totalFuel=DB.records.filter(r=>r.date.startsWith(t.slice(0,7))).reduce((s,r)=>s+(+r.fuelLiters||0),0);
+  const emptyBtn=DB.employees.length===0?`<div class="notice">ยังไม่มีพนักงาน — <a href="#" onclick="seedSample();return false"><b>โหลดข้อมูลตัวอย่าง</b></a> หรือไปที่แท็บ "ลิงก์รับพนักงาน"</div>`:'';
+  return `${emptyBtn}<div class="stat-row">
+    <div class="stat"><div class="v">${DB.employees.filter(e=>e.active).length}</div><div class="l">พนักงานทั้งหมด</div></div>
+    <div class="stat"><div class="v" style="color:var(--ok)">${working}</div><div class="l">กำลังทำงาน</div></div>
+    <div class="stat"><div class="v">${done}</div><div class="l">ลงเวลาครบวันนี้</div></div>
+    <div class="stat"><div class="v" style="color:var(--warn)">${onLeave}</div><div class="l">ลาวันนี้</div></div>
+    <div class="stat"><div class="v">${totalFuel.toFixed(1)}</div><div class="l">น้ำมันเดือนนี้ (ล.)</div></div></div>
+    <div class="card"><h2>สถานะวันนี้ · ${thDate(t)}</h2><div class="table-wrap"><table><thead><tr><th>พนักงาน</th><th>เบอร์รถ</th><th>เข้า</th><th>ออก</th><th>สถานะ</th></tr></thead><tbody>
+    ${DB.employees.filter(e=>e.active).map(e=>{const r=todayRecs.find(x=>x.empId===e.id);const lv=DB.leaves.find(l=>l.empId===e.id&&l.date===t);
+      let st='<span class="chip out">ยังไม่เข้างาน</span>';if(lv)st=`<span class="chip leave">${LEAVE_TYPES[lv.type]}</span>`;else if(r&&r.inTime&&!r.outTime)st='<span class="chip in">กำลังทำงาน</span>';else if(r&&r.outTime)st='<span class="chip out">ออกงานแล้ว</span>';
+      return `<tr><td>${e.name}</td><td>${e.driverNo||'-'}</td><td>${r&&r.inTime?r.inTime+gpsIcon(r.inLoc):'-'}</td><td>${r&&r.outTime?r.outTime+gpsIcon(r.outLoc):'-'}</td><td>${st}</td></tr>`;}).join('')||'<tr><td colspan="5" style="color:#888">—</td></tr>'}
+    </tbody></table></div></div>`;}
+function gpsIcon(loc){return loc?` <a href="https://maps.google.com/?q=${loc.lat},${loc.lng}" target="_blank" title="${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}">📍</a>`:'';}
+async function seedSample(){
+  const emps=[{id:uid('e'),name:'สมชาย ใจดี',role:'คนขับรถ',driverNo:'SN-01',phone:'081-111-1111',pin:'1234',active:true,shift:{start:'08:00',end:'17:00',workDays:[1,2,3,4,5,6]}},
+    {id:uid('e'),name:'สมหญิง รักงาน',role:'คนขับรถ',driverNo:'SN-02',phone:'081-222-2222',pin:'1234',active:true,shift:{start:'08:00',end:'17:00',workDays:[1,2,3,4,5,6]}}];
+  for(const e of emps)await put('employees',e);render();}
+function renderEmployees(){
+  return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <div><h2>พนักงาน</h2><div class="hint" style="margin:0">แตะการ์ดเพื่อดู/แก้ไขประวัติและกะการทำงาน</div></div>
+    <button class="btn" onclick="openEmpForm()">+ เพิ่มพนักงาน</button></div>
+    <div class="grid-cards">${DB.employees.map(e=>`<div class="emp-card" onclick="openEmpDetail('${e.id}')"><div class="avatar">${e.name.slice(0,1)}</div><div class="nm">${e.name} ${e.active?'':'<span class="chip out">พักงาน</span>'}</div><div class="meta">${e.role}${e.driverNo?' · รถ '+e.driverNo:''}</div><div class="meta">กะ ${e.shift.start}–${e.shift.end}</div></div>`).join('')||'<div class="hint">ยังไม่มีพนักงาน</div>'}</div></div>`;}
+function openEmpForm(emp){
+  const e=emp||{name:'',role:'คนขับรถ',driverNo:'',phone:'',pin:'1234',active:true,shift:{start:'08:00',end:'17:00',workDays:[1,2,3,4,5,6]}};
+  const days=[['1','จ'],['2','อ'],['3','พ'],['4','พฤ'],['5','ศ'],['6','ส'],['0','อา']];
+  modal(`<h3>${emp?'แก้ไขพนักงาน':'เพิ่มพนักงาน'}</h3>
+    <div class="row"><div class="field"><label>ชื่อ-สกุล</label><input id="fName" value="${e.name}"></div><div class="field"><label>ตำแหน่ง</label><input id="fRole" value="${e.role}"></div></div>
+    <div class="row"><div class="field"><label>เบอร์รถ / รหัสคนขับ</label><input id="fDriver" value="${e.driverNo||''}" placeholder="SN-01"></div><div class="field"><label>เบอร์โทร</label><input id="fPhone" value="${e.phone||''}"></div></div>
+    <div class="row"><div class="field"><label>PIN ลงเวลา</label><input id="fPin" value="${e.pin}"></div><div class="field"><label>สถานะ</label><select id="fActive"><option value="1" ${e.active?'selected':''}>ทำงานอยู่</option><option value="0" ${!e.active?'selected':''}>พักงาน</option></select></div></div>
+    <div class="row"><div class="field"><label>เวลาเข้ากะ</label><input id="fStart" type="time" value="${e.shift.start}"></div><div class="field"><label>เวลาออกกะ</label><input id="fEnd" type="time" value="${e.shift.end}"></div></div>
+    <div class="field"><label>วันทำงาน</label><div id="fDays" style="display:flex;gap:6px;flex-wrap:wrap">${days.map(([v,l])=>`<button type="button" class="btn sm ${e.shift.workDays.includes(+v)?'':'gray'}" data-d="${v}" onclick="toggleDay(this)">${l}</button>`).join('')}</div></div>
+    <div class="actions"><button class="btn gray" onclick="closeModal()">ยกเลิก</button><button class="btn" onclick="saveEmp('${emp?emp.id:''}')">บันทึก</button></div>`);}
+function toggleDay(b){b.classList.toggle('gray')}
+async function saveEmp(id){
+  const days=[...document.querySelectorAll('#fDays button')].filter(b=>!b.classList.contains('gray')).map(b=>+b.dataset.d);
+  const data={name:document.getElementById('fName').value.trim(),role:document.getElementById('fRole').value.trim(),driverNo:document.getElementById('fDriver').value.trim(),phone:document.getElementById('fPhone').value.trim(),pin:document.getElementById('fPin').value.trim(),active:document.getElementById('fActive').value==='1',shift:{start:document.getElementById('fStart').value,end:document.getElementById('fEnd').value,workDays:days}};
+  if(!data.name)return alert('กรุณากรอกชื่อ');
+  const obj=id?{...DB.employees.find(e=>e.id===id),...data}:{id:uid('e'),...data};
+  await put('employees',obj);closeModal();render();}
+function openEmpDetail(id){
+  curEmpDetailId=id;const e=DB.employees.find(x=>x.id===id);const mon=todayISO().slice(0,7);
+  document.getElementById('content').innerHTML=`<button class="btn gray sm" onclick="go('employees')">← กลับ</button>
+  <div class="card" style="margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
+    <div style="display:flex;gap:12px;align-items:center"><div class="avatar" style="width:54px;height:54px;font-size:22px">${e.name.slice(0,1)}</div>
+    <div><h2>${e.name}</h2><div class="hint" style="margin:0">${e.role}${e.driverNo?' · เบอร์รถ '+e.driverNo:''} · โทร ${e.phone||'-'}</div><div class="hint" style="margin:0">กะ ${e.shift.start}–${e.shift.end} · PIN ${e.pin}</div></div></div>
+    <button class="btn gray sm" onclick="openEmpForm(DB.employees.find(x=>x.id==='${id}'))">แก้ไขข้อมูล/กะ</button></div></div>
+  <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h2>ประวัติการลงเวลา — เดือน ${thDate(todayISO()).split(' ').slice(1).join(' ')}</h2><button class="btn sm" onclick="addManualRecord('${id}')">+ เพิ่มรายการเอง</button></div>
+    <div class="notice">แก้ไขเวลาเข้า–ออก แต่ละช่วง ใส่เวลาเอง เติมน้ำมัน หมายเหตุ ได้ทุกช่อง (บันทึกอัตโนมัติเมื่อเปลี่ยน)</div>
+    ${historyTable(id,mon,true)}</div>`;}
+function historyTable(empId,mon,editable){
+  const recs=DB.records.filter(r=>r.empId===empId&&r.date.startsWith(mon)).sort((a,b)=>b.date.localeCompare(a.date));
+  const rows=recs.map(r=>{const hrs=fmtH(diffHours(r.inTime,r.outTime));
+    if(editable)return `<tr><td>${thDate(r.date)}<div style="font-size:11px;color:#999">${thDayName(r.date)}</div></td>
+      <td><input value="${r.inTime||''}" style="width:70px" onchange="editRec('${r.id}','inTime',this.value)"></td>
+      <td><input value="${r.outTime||''}" style="width:70px" onchange="editRec('${r.id}','outTime',this.value)"></td>
+      <td class="num">${hrs}</td>
+      <td><input value="${r.vehicleNo||''}" style="width:70px" onchange="editRec('${r.id}','vehicleNo',this.value)"></td>
+      <td><button class="btn gray sm" onclick="openFuelManage('${r.id}')">⛽ ${(+r.fuelLiters||0).toFixed(1)} ล.</button></td>
+      <td>${r.inLoc?gpsIcon(r.inLoc):''}${r.outLoc?gpsIcon(r.outLoc):''}</td>
+      <td><input value="${r.note||''}" style="width:110px" onchange="editRec('${r.id}','note',this.value)"></td>
+      <td><button class="btn danger sm" onclick="delRec('${r.id}')">ลบ</button></td></tr>`;
+    return `<tr><td>${thDate(r.date)}</td><td>${r.inTime||'-'}</td><td>${r.outTime||'-'}</td><td class="num">${hrs}</td><td>${r.vehicleNo||'-'}</td><td class="num">${r.fuelLiters||0}</td><td>${r.note||'-'}</td></tr>`;}).join('');
+  const head=editable?'<tr><th>วันที่</th><th>เข้า</th><th>ออก</th><th class="num">รวม</th><th>รถ</th><th>น้ำมัน</th><th>GPS</th><th>หมายเหตุ</th><th></th></tr>':'<tr><th>วันที่</th><th>เข้า</th><th>ออก</th><th class="num">รวม</th><th>รถ</th><th class="num">น้ำมัน</th><th>หมายเหตุ</th></tr>';
+  return `<div class="table-wrap"><table><thead>${head}</thead><tbody>${rows||`<tr><td colspan="9" style="color:#888">ยังไม่มีข้อมูลเดือนนี้</td></tr>`}</tbody></table></div>`;}
+async function editRec(id,field,val){const r=DB.records.find(x=>x.id===id);if(field==='fuelLiters')val=+val||0;r[field]=val;await put('records',r);if(curEmpDetailId)openEmpDetail(curEmpDetailId);}
+async function delRec(id){if(!confirm('ลบรายการนี้?'))return;await del('records',id);if(curEmpDetailId)openEmpDetail(curEmpDetailId);else render();}
+function addManualRecord(empId){modal(`<h3>เพิ่มรายการเวลาเอง</h3>
+  <div class="row"><div class="field"><label>วันที่</label><input id="aDate" type="date" value="${todayISO()}"></div><div class="field"><label>เบอร์รถ</label><input id="aVeh" placeholder="SN-01"></div></div>
+  <div class="row"><div class="field"><label>เวลาเข้า</label><input id="aIn" type="time" value="08:00"></div><div class="field"><label>เวลาออก</label><input id="aOut" type="time" value="17:00"></div></div>
+  <div class="row"><div class="field"><label>น้ำมัน (ลิตร)</label><input id="aFuel" type="number" step="0.1" value="0"></div><div class="field"><label>หมายเหตุ</label><input id="aNote"></div></div>
+  <div class="actions"><button class="btn gray" onclick="closeModal()">ยกเลิก</button><button class="btn" onclick="saveManual('${empId}')">บันทึก</button></div>`);}
+async function saveManual(empId){await put('records',{id:uid('r'),empId,date:document.getElementById('aDate').value,inTime:document.getElementById('aIn').value,outTime:document.getElementById('aOut').value,inLoc:null,outLoc:null,vehicleNo:document.getElementById('aVeh').value,fuelLiters:+document.getElementById('aFuel').value||0,note:document.getElementById('aNote').value,status:'work'});closeModal();openEmpDetail(empId);}
+
+function renderDaily(){
+  const d=window._dailyDate||todayISO();window._dailyDate=d;
+  const recs=DB.records.filter(r=>r.date===d),leaves=DB.leaves.filter(l=>l.date===d),hol=DB.holidays.find(h=>h.date===d);
+  const totFuel=recs.reduce((s,r)=>s+(+r.fuelLiters||0),0),totHrs=recs.reduce((s,r)=>s+diffHours(r.inTime,r.outTime),0);
+  return `<div class="card no-print"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+    <div><h2>สรุปรายวัน</h2><div class="hint" style="margin:0">${thDayName(d)} ${thDate(d)} ${hol?'· 🎉 '+hol.name:''}</div></div>
+    <div class="row" style="align-items:center"><input type="date" value="${d}" onchange="window._dailyDate=this.value;render()" style="padding:9px;border:1px solid var(--line);border-radius:9px"><button class="btn" onclick="printDaily('${d}')">🖨️ พิมพ์ A4</button></div></div>
+    <div class="stat-row" style="margin-top:14px"><div class="stat"><div class="v">${recs.filter(r=>r.inTime).length}</div><div class="l">มาทำงาน</div></div><div class="stat"><div class="v">${leaves.length}</div><div class="l">ลา</div></div><div class="stat"><div class="v">${fmtH(totHrs)}</div><div class="l">ชั่วโมงรวม</div></div><div class="stat"><div class="v">${totFuel.toFixed(1)}</div><div class="l">น้ำมันรวม (ล.)</div></div></div>
+    <div class="table-wrap"><table><thead><tr><th>พนักงาน</th><th>เบอร์รถ</th><th>เข้า</th><th>ออก</th><th class="num">รวม</th><th class="num">น้ำมัน</th><th>สถานะ</th></tr></thead><tbody>
+    ${DB.employees.filter(e=>e.active).map(e=>{const r=recs.find(x=>x.empId===e.id);const lv=leaves.find(l=>l.empId===e.id);
+      let st=r&&r.outTime?'<span class="chip out">ครบ</span>':r&&r.inTime?'<span class="chip in">ทำงาน</span>':lv?`<span class="chip leave">${LEAVE_TYPES[lv.type]}</span>`:'<span class="chip out">ขาด/ยังไม่มา</span>';
+      return `<tr><td>${e.name}</td><td>${e.driverNo||'-'}</td><td>${r&&r.inTime?r.inTime+gpsIcon(r.inLoc):'-'}</td><td>${r&&r.outTime?r.outTime+gpsIcon(r.outLoc):'-'}</td><td class="num">${fmtH(diffHours(r?.inTime,r?.outTime))}</td><td class="num">${r?.fuelLiters||0}</td><td>${st}</td></tr>`;}).join('')}
+    </tbody></table></div><div class="legend"><span>📍 = เปิดพิกัด GPS ใน Google Maps</span></div></div>`;}
+function renderMonthly(){
+  const m=window._monthSel||todayISO().slice(0,7);window._monthSel=m;const emp=DB.employees.filter(e=>e.active);
+  return `<div class="card no-print"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+    <div><h2>สรุปรายเดือน</h2><div class="hint" style="margin:0">รวมชั่วโมง วันทำงาน วันลา และน้ำมันต่อคน</div></div>
+    <div class="row" style="align-items:center"><input type="month" value="${m}" onchange="window._monthSel=this.value;render()" style="padding:9px;border:1px solid var(--line);border-radius:9px"><button class="btn" onclick="printMonthly('${m}')">🖨️ พิมพ์ A4</button></div></div>
+    <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>พนักงาน</th><th>เบอร์รถ</th><th class="num">วันทำงาน</th><th class="num">ชั่วโมงรวม</th><th class="num">วันลา</th><th class="num">น้ำมัน (ล.)</th></tr></thead><tbody>
+    ${emp.map(e=>{const s=monthAgg(e.id,m);return `<tr><td>${e.name}</td><td>${e.driverNo||'-'}</td><td class="num">${s.days}</td><td class="num">${fmtH(s.hrs)}</td><td class="num">${s.leaves}</td><td class="num">${s.fuel.toFixed(1)}</td></tr>`;}).join('')}
+    </tbody><tfoot><tr style="font-weight:800;background:#f7f9fc"><td colspan="2">รวมทั้งหมด</td><td class="num">${emp.reduce((a,e)=>a+monthAgg(e.id,m).days,0)}</td><td class="num">${fmtH(emp.reduce((a,e)=>a+monthAgg(e.id,m).hrs,0))}</td><td class="num">${emp.reduce((a,e)=>a+monthAgg(e.id,m).leaves,0)}</td><td class="num">${emp.reduce((a,e)=>a+monthAgg(e.id,m).fuel,0).toFixed(1)}</td></tr></tfoot></table></div></div>`;}
+function monthAgg(empId,m){const recs=DB.records.filter(r=>r.empId===empId&&r.date.startsWith(m)&&r.status==='work');
+  return {days:recs.filter(r=>r.inTime).length,hrs:recs.reduce((s,r)=>s+diffHours(r.inTime,r.outTime),0),fuel:recs.reduce((s,r)=>s+(+r.fuelLiters||0),0),leaves:DB.leaves.filter(l=>l.empId===empId&&l.date.startsWith(m)).length};}
+
+function renderLeaves(){
+  return `<div class="card"><h2>คำขอลา</h2><div class="hint">อนุมัติ/ปฏิเสธคำขอลา หรือเพิ่มการลาเอง</div><button class="btn sm" onclick="openAddLeave()">+ บันทึกการลา</button>
+    <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>พนักงาน</th><th>วันที่</th><th>ประเภท</th><th>เหตุผล</th><th>สถานะ</th><th></th></tr></thead><tbody>
+    ${DB.leaves.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(l=>{const e=DB.employees.find(x=>x.id===l.empId);
+      return `<tr><td>${e?e.name:'-'}</td><td>${thDate(l.date)}</td><td>${LEAVE_TYPES[l.type]}</td><td>${l.note||'-'}</td><td><span class="chip ${l.status==='approved'?'in':'leave'}">${l.status==='approved'?'อนุมัติ':'รออนุมัติ'}</span></td><td>${l.status==='pending'?`<button class="btn ok sm" onclick="approveLeave('${l.id}')">อนุมัติ</button> `:''}<button class="btn danger sm" onclick="delLeave('${l.id}')">ลบ</button></td></tr>`;}).join('')||'<tr><td colspan="6" style="color:#888">ยังไม่มีคำขอลา</td></tr>'}
+    </tbody></table></div></div>
+    <div class="card"><h2>วันหยุดบริษัท</h2><div class="row" style="align-items:flex-end"><div class="field"><label>วันที่</label><input id="hDate" type="date"></div><div class="field"><label>ชื่อวันหยุด</label><input id="hName" placeholder="เช่น วันสงกรานต์"></div><div class="field" style="flex:0"><button class="btn" onclick="addHoliday()">เพิ่ม</button></div></div>
+    <div class="table-wrap"><table><thead><tr><th>วันที่</th><th>ชื่อ</th><th></th></tr></thead><tbody>${DB.holidays.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(h=>`<tr><td>${thDate(h.date)}</td><td>${h.name}</td><td><button class="btn danger sm" onclick="delHoliday('${h.id}')">ลบ</button></td></tr>`).join('')||'<tr><td colspan="3" style="color:#888">ยังไม่มี</td></tr>'}</tbody></table></div></div>`;}
+async function approveLeave(id){const l=DB.leaves.find(x=>x.id===id);l.status='approved';await put('leaves',l);render();}
+async function delLeave(id){await del('leaves',id);render();}
+function openAddLeave(){modal(`<h3>บันทึกการลา</h3><div class="field"><label>พนักงาน</label><select id="alEmp">${DB.employees.filter(e=>e.active).map(e=>`<option value="${e.id}">${e.name}</option>`).join('')}</select></div>
+  <div class="row"><div class="field"><label>วันที่</label><input id="alDate" type="date" value="${todayISO()}"></div><div class="field"><label>ประเภท</label><select id="alType">${Object.entries(LEAVE_TYPES).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div></div>
+  <div class="field"><label>เหตุผล</label><input id="alNote"></div><div class="actions"><button class="btn gray" onclick="closeModal()">ยกเลิก</button><button class="btn" onclick="saveAddLeave()">บันทึก (อนุมัติเลย)</button></div>`);}
+async function saveAddLeave(){await put('leaves',{id:uid('l'),empId:document.getElementById('alEmp').value,date:document.getElementById('alDate').value,type:document.getElementById('alType').value,note:document.getElementById('alNote').value,status:'approved'});closeModal();render();}
+async function addHoliday(){const d=document.getElementById('hDate').value,n=document.getElementById('hName').value;if(!d||!n)return alert('กรอกวันที่และชื่อ');await put('holidays',{id:uid('h'),date:d,name:n});render();}
+async function delHoliday(id){await del('holidays',id);render();}
+
+function renderInvite(){
+  const base=location.origin+location.pathname;
+  return `<div class="card"><h2>ลิงก์รับสมัคร / ลงทะเบียนพนักงาน</h2>
+    <div class="hint">สร้างลิงก์แล้วส่งให้พนักงานหลายคนพร้อมกัน แต่ละคนเปิดลิงก์กรอกข้อมูล + ตั้ง PIN เอง แล้วเข้าใช้งานได้ทันที</div>
+    <button class="btn" onclick="genInvite()">+ สร้างลิงก์ใหม่</button>
+    <div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>โค้ด</th><th>ลิงก์แจกพนักงาน</th><th>ลงทะเบียนแล้ว</th><th></th></tr></thead><tbody>
+    ${DB.invites.length?DB.invites.slice().reverse().map(iv=>{const link=base+'#join/'+iv.id;return `<tr><td><b>${iv.id}</b></td><td><div class="link-box"><input readonly value="${link}"><button class="btn sm" onclick="copyLink('${link}')">คัดลอก</button></div></td><td class="num">${iv.usedCount||0}</td><td><button class="btn danger sm" onclick="delInvite('${iv.id}')">ปิด</button></td></tr>`;}).join(''):'<tr><td colspan="4" style="color:#888">ยังไม่มีลิงก์ — กดสร้างลิงก์ใหม่</td></tr>'}
+    </tbody></table></div>
+    <div class="notice" style="margin-top:14px">ลิงก์นี้เป็นลิงก์จริงบนโดเมนที่คุณ deploy พนักงานเปิดในมือถือแล้วลงทะเบียนได้เลย · 1 ลิงก์ใช้ได้หลายคน</div></div>`;}
+async function genInvite(){const code=Math.random().toString(36).slice(2,8).toUpperCase();await put('invites',{id:code,createdAt:todayISO(),usedCount:0,maxUses:200,active:true});render();}
+async function delInvite(id){const iv=DB.invites.find(x=>x.id===id);iv.active=false;await put('invites',iv);render();}
+function copyLink(url){navigator.clipboard?.writeText(url).then(()=>alert('คัดลอกลิงก์แล้ว:\n'+url),()=>prompt('คัดลอกลิงก์นี้:',url));}
+
+/* ---------- modal / print ---------- */
+function modal(html){closeModal();const bg=document.createElement('div');bg.className='modal-bg';bg.id='modalBg';bg.innerHTML=`<div class="modal">${html}</div>`;bg.onclick=e=>{if(e.target===bg)closeModal()};document.body.appendChild(bg);}
+function closeModal(){document.getElementById('modalBg')?.remove();}
+function printDaily(d){
+  const recs=DB.records.filter(r=>r.date===d),leaves=DB.leaves.filter(l=>l.date===d),hol=DB.holidays.find(h=>h.date===d);
+  const rows=DB.employees.filter(e=>e.active).map((e,i)=>{const r=recs.find(x=>x.empId===e.id);const lv=leaves.find(l=>l.empId===e.id);const st=r&&r.outTime?'ทำงานครบ':r&&r.inTime?'กำลังทำงาน':lv?LEAVE_TYPES[lv.type]:'ขาด/ไม่มา';
+    return `<tr><td>${i+1}</td><td>${e.name}</td><td>${e.driverNo||'-'}</td><td style="text-align:center">${r?.inTime||'-'}</td><td style="text-align:center">${r?.outTime||'-'}</td><td style="text-align:center">${fmtH(diffHours(r?.inTime,r?.outTime))}</td><td style="text-align:right">${r?.fuelLiters||0}</td><td>${st}</td></tr>`;}).join('');
+  const totFuel=recs.reduce((s,r)=>s+(+r.fuelLiters||0),0);
+  printSheet(`<h1>บริษัท SN — รายงานลงเวลาทำงานประจำวัน</h1><div class="subh">วันที่ ${thDayName(d)} ${thDate(d)} ${hol?'(วันหยุด: '+hol.name+')':''}</div>
+    <table><thead><tr><th>ลำดับ</th><th>ชื่อพนักงาน</th><th>เบอร์รถ</th><th>เข้างาน</th><th>ออกงาน</th><th>รวมชม.</th><th>น้ำมัน(ล.)</th><th>สถานะ</th></tr></thead><tbody>${rows}</tbody>
+    <tfoot><tr><th colspan="6" style="text-align:right">รวมน้ำมันทั้งวัน</th><th style="text-align:right">${totFuel.toFixed(1)}</th><th></th></tr></tfoot></table>
+    <div class="foot"><div class="sign">ผู้จัดทำ</div><div class="sign">ผู้ตรวจสอบ / อนุมัติ</div></div><div style="text-align:right;font-size:10px;color:#666;margin-top:8px">พิมพ์เมื่อ ${thDate(todayISO())} เวลา ${nowHM()} น.</div>`);}
+function printMonthly(m){
+  const emp=DB.employees.filter(e=>e.active);const rows=emp.map((e,i)=>{const s=monthAgg(e.id,m);return `<tr><td>${i+1}</td><td>${e.name}</td><td>${e.driverNo||'-'}</td><td style="text-align:center">${s.days}</td><td style="text-align:center">${fmtH(s.hrs)}</td><td style="text-align:center">${s.leaves}</td><td style="text-align:right">${s.fuel.toFixed(1)}</td></tr>`;}).join('');
+  const [y,mm]=m.split('-');const monName=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'][+mm-1];
+  printSheet(`<h1>บริษัท SN — รายงานสรุปการทำงานประจำเดือน</h1><div class="subh">ประจำเดือน ${monName} ${+y+543}</div>
+    <table><thead><tr><th>ลำดับ</th><th>ชื่อพนักงาน</th><th>เบอร์รถ</th><th>วันทำงาน</th><th>ชั่วโมงรวม</th><th>วันลา</th><th>น้ำมัน(ล.)</th></tr></thead><tbody>${rows}</tbody>
+    <tfoot><tr><th colspan="3" style="text-align:right">รวม</th><th style="text-align:center">${emp.reduce((a,e)=>a+monthAgg(e.id,m).days,0)}</th><th style="text-align:center">${fmtH(emp.reduce((a,e)=>a+monthAgg(e.id,m).hrs,0))}</th><th style="text-align:center">${emp.reduce((a,e)=>a+monthAgg(e.id,m).leaves,0)}</th><th style="text-align:right">${emp.reduce((a,e)=>a+monthAgg(e.id,m).fuel,0).toFixed(1)}</th></tr></tfoot></table>
+    <div class="foot"><div class="sign">ผู้จัดทำ</div><div class="sign">ผู้ตรวจสอบ / อนุมัติ</div></div><div style="text-align:right;font-size:10px;color:#666;margin-top:8px">พิมพ์เมื่อ ${thDate(todayISO())} เวลา ${nowHM()} น.</div>`);}
+function printSheet(inner){document.getElementById('printArea').innerHTML=`<div class="sheet">${inner}</div>`;window.print();}
+
+/* ---------- start ---------- */
+window.addEventListener('DOMContentLoaded',boot);
+</script>
+</body>
+</html>
