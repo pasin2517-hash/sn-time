@@ -51,6 +51,7 @@ input,select{font-family:inherit;font-size:15px}
 .chip.in{background:var(--ok-bg);color:var(--ok)}
 .chip.out{background:#eef1f6;color:var(--muted)}
 .chip.leave{background:#fff2df;color:var(--warn)}
+.chip.parts{background:#eae6ff;color:#6a4bd0}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th,td{padding:9px 8px;text-align:left;border-bottom:1px solid var(--line)}
 th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;font-weight:700}
@@ -181,6 +182,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 <div id="printArea"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 /* =========================================================
    SN Time Tracker — Cloud (Supabase + Realtime)
@@ -188,11 +190,12 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
    ========================================================= */
 const SUPABASE_URL   = "https://mkavdrmglxnvuvzdikdg.supabase.co";
 const SUPABASE_ANON  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1rYXZkcm1nbHhudnV2emRpa2RnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4NTA4NzksImV4cCI6MjEwMTQyNjg3OX0.uPL7to_6jULqhOXHXGzfbcb60Ss6v8qhR5WvWY7WRfg";
-const ADMIN_PASSWORD = "SNadmin2026";  // <-- รหัสผู้ดูแล/HR (แนะนำให้เปลี่ยนเป็นของคุณเอง)
+const ADMIN_PASSWORD = "SNadmin2026";  // <-- รหัสผู้ดูแล/HR
 
-const TABLES=['employees','records','leaves','holidays','invites'];
+const TABLES=['employees','records','leaves','holidays','invites','repairs'];
 const LEAVE_TYPES={annual:'ลาพักร้อน',sick:'ลาป่วย',personal:'ลากิจ',unpaid:'ลาไม่รับเงิน'};
-let sb=null, DB={employees:[],records:[],leaves:[],holidays:[],invites:[]};
+const REPAIR_STATUS={waiting:'รอซ่อม',parts:'รออะไหล่',done:'ซ่อมเสร็จ'};
+let sb=null, DB={employees:[],records:[],leaves:[],holidays:[],invites:[],repairs:[]};
 let session=null, curTab='', curEmpDetailId=null;
 
 /* ---------- helpers ---------- */
@@ -297,8 +300,8 @@ function doLogin(){
 function logout(){session=null;document.getElementById('app').classList.add('hidden');fillLoginSelect();document.getElementById('loginView').classList.remove('hidden');}
 
 /* ---------- app shell ---------- */
-const TABS_ADMIN=[['dash','แดชบอร์ด'],['employees','พนักงาน'],['daily','สรุปรายวัน'],['monthly','สรุปรายเดือน'],['leaves','ลา / วันหยุด'],['invite','ลิงก์รับพนักงาน']];
-const TABS_EMP=[['clock','ลงเวลา'],['myhistory','ประวัติของฉัน'],['myleave','แจ้งลา']];
+const TABS_ADMIN=[['dash','แดชบอร์ด'],['employees','พนักงาน'],['daily','สรุปรายวัน'],['monthly','สรุปรายเดือน'],['repairs','แจ้งซ่อม'],['leaves','ลา / วันหยุด'],['invite','ลิงก์รับพนักงาน']];
+const TABS_EMP=[['clock','ลงเวลา'],['repair','แจ้งซ่อม'],['myhistory','ประวัติของฉัน'],['myleave','แจ้งลา']];
 function startApp(){
   document.getElementById('loginView').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
@@ -311,7 +314,7 @@ function startApp(){
 function go(tab){curTab=tab;document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));render();}
 function render(){
   const c=document.getElementById('content');
-  const map={dash:renderDash,employees:renderEmployees,daily:renderDaily,monthly:renderMonthly,leaves:renderLeaves,invite:renderInvite,clock:renderClock,myhistory:renderMyHistory,myleave:renderMyLeave};
+  const map={dash:renderDash,employees:renderEmployees,daily:renderDaily,monthly:renderMonthly,leaves:renderLeaves,invite:renderInvite,clock:renderClock,myhistory:renderMyHistory,myleave:renderMyLeave,repair:renderRepair,repairs:renderRepairsAdmin};
   c.innerHTML=(map[curTab]||(()=>''))();
   if(curTab==='clock')startClock();
 }
@@ -413,13 +416,77 @@ async function submitLeave(empId){const d=document.getElementById('lvDate').valu
   await put('leaves',{id:uid('l'),empId,date:d,type:document.getElementById('lvType').value,note:document.getElementById('lvNote').value,status:'pending'});
   alert('ส่งคำขอลาแล้ว');render();}
 
+/* ---- แจ้งซ่อม (repairs) ---- */
+function repairChip(s){const m={waiting:['leave','รอซ่อม'],parts:['parts','รออะไหล่'],done:['in','ซ่อมเสร็จ']}[s]||['out',s||'-'];return `<span class="chip ${m[0]}">${m[1]}</span>`;}
+function renderRepair(){
+  const e=DB.employees.find(x=>x.id===session.empId);
+  const mine=DB.repairs.filter(r=>r.empId===e.id).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+  return `<div class="card"><h2>🔧 แจ้งซ่อมรถ</h2><div class="hint">แจ้งอาการรถเสีย — ระบบจะแจ้งบอสและแอดมินทันทีแบบเรียลไทม์</div>
+    <div class="row"><div class="field"><label>เบอร์รถ</label><input id="rpVeh" value="${e.driverNo||''}" placeholder="SN-01"></div>
+    <div class="field"><label>วันที่</label><input id="rpDate" type="date" value="${todayISO()}"></div></div>
+    <div class="field"><label>รายละเอียดอาการที่เสีย</label><input id="rpDetail" placeholder="เช่น เบรกมีเสียงดัง / แอร์ไม่เย็น / ยางรั่ว"></div>
+    <button class="btn danger" onclick="submitRepair('${e.id}')">🔧 ส่งแจ้งซ่อม</button></div>
+  <div class="card"><h2>รายการแจ้งซ่อมของฉัน</h2><div class="table-wrap"><table><thead><tr><th>วันที่</th><th>เบอร์รถ</th><th>อาการ</th><th>สถานะ</th></tr></thead><tbody>
+    ${mine.map(r=>`<tr><td>${thDate(r.date)}</td><td>${r.vehicleNo||'-'}</td><td>${r.detail||'-'}</td><td>${repairChip(r.status)}</td></tr>`).join('')||'<tr><td colspan="4" style="color:#888">ยังไม่มีรายการ</td></tr>'}
+  </tbody></table></div></div>`;
+}
+async function submitRepair(empId){
+  const detail=document.getElementById('rpDetail').value.trim();
+  if(!detail)return alert('กรุณากรอกอาการที่เสีย');
+  const e=DB.employees.find(x=>x.id===empId);
+  await put('repairs',{id:uid('rp'),empId,empName:e.name,vehicleNo:document.getElementById('rpVeh').value.trim(),detail,date:document.getElementById('rpDate').value,createdAt:new Date().toISOString(),status:'waiting'});
+  alert('ส่งแจ้งซ่อมแล้ว ✓ บอสและแอดมินจะเห็นทันที');render();
+}
+function renderRepairsAdmin(){
+  const all=DB.repairs.slice().sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+  const pend=all.filter(r=>r.status!=='done').length;
+  return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+    <div><h2>🔧 แจ้งซ่อมรถ</h2><div class="hint" style="margin:0">แก้อาการ/เบอร์รถได้ และอัปเดตสถานะ: รอซ่อม / รออะไหล่ / ซ่อมเสร็จ</div></div>
+    ${pend?`<span class="chip leave">รอดำเนินการ ${pend} รายการ</span>`:'<span class="chip in">ไม่มีค้าง</span>'}</div>
+    <div class="table-wrap" style="margin-top:10px"><table><thead><tr><th>วันที่</th><th>พนักงาน</th><th>เบอร์รถ</th><th>อาการ</th><th>สถานะ</th><th></th></tr></thead><tbody>
+    ${all.map(r=>`<tr><td>${thDate(r.date)}</td><td>${r.empName||''}</td>
+      <td><input value="${r.vehicleNo||''}" style="width:70px" onchange="editRepair('${r.id}','vehicleNo',this.value)"></td>
+      <td><input value="${(r.detail||'').replace(/"/g,'&quot;')}" style="width:200px" onchange="editRepair('${r.id}','detail',this.value)"></td>
+      <td><select onchange="setRepairStatus('${r.id}',this.value)">
+        <option value="waiting" ${r.status==='waiting'?'selected':''}>รอซ่อม</option>
+        <option value="parts" ${r.status==='parts'?'selected':''}>รออะไหล่</option>
+        <option value="done" ${r.status==='done'?'selected':''}>ซ่อมเสร็จ</option></select></td>
+      <td><button class="btn danger sm" onclick="delRepair('${r.id}')">ลบ</button></td></tr>`).join('')||'<tr><td colspan="6" style="color:#888">ยังไม่มีรายการแจ้งซ่อม</td></tr>'}
+    </tbody></table></div></div>`;
+}
+async function setRepairStatus(id,s){const r=DB.repairs.find(x=>x.id===id);r.status=s;await put('repairs',r);render();}
+async function editRepair(id,field,val){const r=DB.repairs.find(x=>x.id===id);r[field]=val;await put('repairs',r);}
+async function delRepair(id){if(!confirm('ลบรายการนี้?'))return;await del('repairs',id);render();}
+
+/* ---- Export Excel (บอส/แอดมิน) ---- */
+function exportExcel(){
+  if(typeof XLSX==='undefined')return alert('ไลบรารี Excel ยังโหลดไม่เสร็จ กรุณาลองใหม่อีกครั้ง');
+  const nm=id=>{const e=DB.employees.find(x=>x.id===id);return e?e.name:id;};
+  const wb=XLSX.utils.book_new();
+  const recs=DB.records.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(r=>({วันที่:r.date,พนักงาน:nm(r.empId),เบอร์รถ:r.vehicleNo||'',เข้างาน:r.inTime||'',ออกงาน:r.outTime||'',ชั่วโมงรวม:+diffHours(r.inTime,r.outTime).toFixed(2),น้ำมันรวมลิตร:+(r.fuelLiters||0),พิกัดเข้า:r.inLoc?`${r.inLoc.lat},${r.inLoc.lng}`:'',พิกัดออก:r.outLoc?`${r.outLoc.lat},${r.outLoc.lng}`:'',หมายเหตุ:r.note||''}));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(recs.length?recs:[{}]),'ลงเวลา');
+  const fuel=[];DB.records.forEach(r=>getFuelEntries(r).forEach(f=>fuel.push({วันที่:r.date,พนักงาน:nm(r.empId),เบอร์รถ:r.vehicleNo||'',เวลาที่เติม:f.time||'',ลิตร:+f.liters||0})));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(fuel.length?fuel:[{}]),'น้ำมัน');
+  const lv=DB.leaves.map(l=>({วันที่:l.date,พนักงาน:nm(l.empId),ประเภท:LEAVE_TYPES[l.type]||l.type,เหตุผล:l.note||'',สถานะ:l.status==='approved'?'อนุมัติ':'รออนุมัติ'}));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(lv.length?lv:[{}]),'การลา');
+  const rp=DB.repairs.slice().sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')).map(r=>({วันที่:r.date,พนักงาน:r.empName||nm(r.empId),เบอร์รถ:r.vehicleNo||'',อาการ:r.detail||'',สถานะ:REPAIR_STATUS[r.status]||r.status}));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rp.length?rp:[{}]),'แจ้งซ่อม');
+  const em=DB.employees.map(e=>({ชื่อ:e.name,ตำแหน่ง:e.role,เบอร์รถ:e.driverNo||'',โทร:e.phone||'',กะ:`${e.shift.start}-${e.shift.end}`,สถานะ:e.active?'ทำงาน':'พักงาน'}));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(em.length?em:[{}]),'พนักงาน');
+  XLSX.writeFile(wb,'SN-ข้อมูลทั้งหมด-'+todayISO()+'.xlsx');
+}
+
 /* ===== ADMIN ===== */
 function renderDash(){
   const t=todayISO();const todayRecs=DB.records.filter(r=>r.date===t);
   const working=todayRecs.filter(r=>r.inTime&&!r.outTime).length,done=todayRecs.filter(r=>r.inTime&&r.outTime).length,onLeave=DB.leaves.filter(l=>l.date===t).length;
   const totalFuel=DB.records.filter(r=>r.date.startsWith(t.slice(0,7))).reduce((s,r)=>s+(+r.fuelLiters||0),0);
   const emptyBtn=DB.employees.length===0?`<div class="notice">ยังไม่มีพนักงาน — <a href="#" onclick="seedSample();return false"><b>โหลดข้อมูลตัวอย่าง</b></a> หรือไปที่แท็บ "ลิงก์รับพนักงาน"</div>`:'';
-  return `${emptyBtn}<div class="stat-row">
+  const pendR=DB.repairs.filter(r=>r.status!=='done').length;
+  const topBar=`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+    <div>${pendR?`<a href="#" onclick="go('repairs');return false"><span class="chip leave">🔧 แจ้งซ่อมรอดำเนินการ ${pendR} รายการ</span></a>`:''}</div>
+    <button class="btn ok" onclick="exportExcel()">⬇️ ดาวน์โหลด Excel (ข้อมูลทั้งหมด)</button></div>`;
+  return `${emptyBtn}${topBar}<div class="stat-row">
     <div class="stat"><div class="v">${DB.employees.filter(e=>e.active).length}</div><div class="l">พนักงานทั้งหมด</div></div>
     <div class="stat"><div class="v" style="color:var(--ok)">${working}</div><div class="l">กำลังทำงาน</div></div>
     <div class="stat"><div class="v">${done}</div><div class="l">ลงเวลาครบวันนี้</div></div>
